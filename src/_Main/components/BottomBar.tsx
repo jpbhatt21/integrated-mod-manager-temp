@@ -1,0 +1,109 @@
+import { Button } from "@/components/ui/button";
+import { UNCATEGORIZED } from "@/utils/consts";
+import { CATEGORIES, CATEGORY, MOD_LIST, ONLINE, ONLINE_PATH, ONLINE_SORT, ONLINE_TYPE, TEXT_DATA } from "@/utils/vars";
+import { useAtom, useAtomValue } from "jotai";
+import { FileQuestionIcon, GroupIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMemo } from "react";
+
+function BottomBar() {
+	const textData = useAtomValue(TEXT_DATA);
+	const [category, setCategory] = useAtom(CATEGORY);
+	const [onlinePath, setOnlinePath] = useAtom(ONLINE_PATH);
+	const onlineType = useAtomValue(ONLINE_TYPE)
+	const onlineSort = useAtomValue(ONLINE_SORT)
+	const online = useAtomValue(ONLINE);
+	const modList = useAtomValue(MOD_LIST);
+	const categories = useAtomValue(CATEGORIES);
+	const localCategories = useMemo(() => {
+		return online
+			? categories
+			: [
+					{ _sName: "All", _sIconUrl: "/icons/all.png", _special: true },
+					...(modList.some((mod) => mod.parent == UNCATEGORIZED)
+						? [{ _sName: UNCATEGORIZED, _sIconUrl: "/icons/uncategorized.png", _special: true }]
+						: []),
+					...categories.filter((cat) => modList.some((mod) => mod.parent == cat._sName)),
+			  ];
+	}, [categories, modList, online]);
+	return (
+		<div className="min-h-20 flex items-center justify-center w-full h-20 p-2">
+			<div className="bg-sidebar trs z-100 text-accent flex items-center justify-center w-full h-full gap-1 p-2 border rounded-lg">
+				<label className="min-w-fit data-zzz:text-foreground gap-1">{textData.Category} :</label>
+				<div
+					onWheel={(e) => {
+						if (e.deltaX != 0) return;
+						let target = e.currentTarget as HTMLDivElement;
+						target.scrollTo({
+							left: target.scrollLeft + e.deltaY,
+							// behavior: "smooth",
+						});
+					}}
+					className=" h-15 items-top thin flex items-center justify-start w-full gap-2 p-2 my-1 mr-1 overflow-x-auto overflow-y-hidden text-white"
+				>
+					<AnimatePresence mode="popLayout">
+						{localCategories.map((cat) => (
+							<motion.div
+								initial={{ opacity: 0, y: "100%" }}
+								animate={{ opacity: 1, y: "0%" }}
+								exit={{ opacity: 0, y: "100%" }}
+								key={cat._sName}
+								layout
+							>
+								<Button
+									key={cat._sName}
+									onClick={() => {
+										if (online) {
+											if (cat._special) {
+												return;
+											}
+											if (onlinePath.startsWith("Skins/" + cat._sName)) {
+												setOnlinePath("home&type=" + onlineType);
+												return;
+											}
+											setOnlinePath(`Skins/${cat._sName}&_sort=${onlineSort}`);
+										} else {
+											setCategory(cat._sName);
+										}
+										// if (online) {
+
+										// } else {
+										// 	setSelectedCategory(category._sName);
+										// }
+									}}
+									style={{
+										scale: online && cat._special ? "0" : "1",
+										marginRight: online && cat._special ? "-9.5rem" : "0rem",
+										padding: online && cat._special ? "0rem" : "",
+									}}
+									className={
+										" data-zzz:rounded-lg "+((online ? onlinePath.startsWith(`Skins/${cat._sName}`) : category == cat._sName)
+											? " bg-accent bgaccent    data-zzz:text-background text-background"
+											: "")
+									}
+								>
+									{cat._sName == "All" ? (
+										<GroupIcon className="aspect-square ctrs h-full pointer-events-none" />
+									) : cat._sName == UNCATEGORIZED ? (
+										<FileQuestionIcon className="aspect-square ctrs h-full pointer-events-none" />
+									) : (
+										<img
+											className="aspect-square min-w-6 scale-120 h-full ctrs rounded-full pointer-events-none"
+											onError={(e) => {
+												e.currentTarget.src = "/who.jpg";
+											}}
+											src={cat._sIconUrl || "err"}
+										/>
+									)}
+									<span className="ctrs">{cat._sName.split(" ")[0]}</span>
+								</Button>
+							</motion.div>
+						))}
+					</AnimatePresence>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+export default BottomBar;

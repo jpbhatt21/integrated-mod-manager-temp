@@ -1,0 +1,198 @@
+import { addToast } from "@/_Toaster/ToastProvider";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { managedSRC, UNCATEGORIZED } from "@/utils/consts";
+import { applyChanges, createManagedDir, createRestorePoint, folderSelector, verifyDirStruct } from "@/utils/filesys";
+import { ChangeInfo } from "@/utils/types";
+import { CHANGES, FIRST_LOAD, HELP_OPEN, INIT_DONE, SOURCE, TEXT_DATA} from "@/utils/vars";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { ChevronRightIcon, FileIcon, Folder, FolderCogIcon } from "lucide-react";
+import { motion } from "motion/react";
+import { useEffect } from "react";
+function Changes({ afterInit }: { afterInit: () => Promise<void> }) {
+	const textData = useAtomValue(TEXT_DATA);
+	const [changes, setChanges] = useAtom(CHANGES);
+	const [source, setSource] = useAtom(SOURCE);
+	const setInitDone = useSetAtom(INIT_DONE);
+	const firstLoad = useAtomValue(FIRST_LOAD);
+	const setHelpOpen = useSetAtom(HELP_OPEN);
+	useEffect(() => {
+		if (!changes.skip) return;
+		afterInit().then(() => {
+			setTimeout(() => {
+				setInitDone(true);
+				setChanges({
+					...changes,
+					skip: false,
+					before: [],
+					after: [],
+					map: {},
+					title: "",
+				} as ChangeInfo);
+			}, 1000);
+		});
+	}, [changes.skip]);
+	return changes.before.length ? (
+		<motion.div
+			key="changes"
+			initial={{ opacity: 0, filter: "blur(6px)" }}
+			animate={{ opacity: 1, filter: "blur(0px)" }}
+			exit={{ opacity: 0, filter: "blur(6px)" }}
+			className="bg-background/50 fixed z-50 flex items-center justify-center w-full h-full duration-200"
+			style={{
+				backdropFilter: "blur(5px)",
+				opacity: 1,
+			}}
+		>
+			<div className="w-180 h-164 bg-background/50 border-border flex flex-col items-center gap-4 p-4 overflow-hidden border-2 rounded-lg">
+				<div className="min-h-fit text-accent my-6 text-3xl">{textData._Changes.ConfirmChanges}</div>
+				<div className="flex flex-row items-center w-full gap-2 px-2">
+					<Button
+						className="aspect-square flex items-center justify-center w-10 h-10"
+						onClick={async () => {
+							let path = ((await folderSelector(source)) as string) || source || "";
+							setSource(path.endsWith(managedSRC) ? path.split(managedSRC)[0] : path);
+							setChanges(await verifyDirStruct());
+						}}
+					>
+						<Folder className="aspect-square w-5" />
+					</Button>
+					<div className=" w-157 max-w-157 bg-input/50 min-h-10 flex items-center px-2 text-gray-200 rounded-md">
+						<Label className=" max-w-full duration-200">{source}</Label>
+					</div>
+				</div>
+				<div className="h-100 flex items-center w-full p-0">
+					<div className="flex flex-col w-1/2 h-full overflow-x-hidden overflow-y-auto text-gray-300 border rounded-sm">
+						{changes.before.map((item, index) => (
+							<div
+								key={index + item.name}
+								className={"w-full min-h-10 border-b flex gap-2 items-center px-2"}
+								style={{ backgroundColor: index % 2 == 0 ? "#1b1b1b50" : "#31313150" }}
+							>
+								{item.isDirectory ? <Folder className="w-4 h-4" /> : <FileIcon className="w-4 h-4" />}
+								<Label className={"w-full pointer-events-none " + ((index % 2) + 1)}>{item.name}</Label>
+							</div>
+						))}
+					</div>
+					<ChevronRightIcon className="text-accent w-8 h-8" />
+					<div className="flex flex-col w-1/2 h-full overflow-x-hidden overflow-y-auto text-gray-300 border rounded-sm">
+						{changes.after.map((item, index) => (
+							<div
+								key={index + item.name}
+								className={"w-full flex  flex-col"}
+								style={{
+									backgroundColor: index % 2 == 0 ? "#1b1b1b50" : "#31313150",
+									borderBottom: index == changes.after.length - 1 ? "" : "1px solid var(--border)",
+								}}
+							>
+								<div className={"w-full border-b  min-h-10 gap-2 flex items-center px-2"}>
+									{item.isDirectory ? <Folder className="w-4 h-4" /> : <FileIcon className="w-4 h-4" />}
+									<Label className={"w-full pointer-events-none " + ((index % 2) + 1)}>{item.name}</Label>
+								</div>
+								<div className="flex border-l flex-col items-center w-full ml-4">
+									{item.children?.map((child, index) => (
+										<>
+											<div
+												key={index + child.name}
+												className={"w-full min-h-10 bor der-y flex gap-2 items-center px-2 "}
+												style={{
+													backgroundColor: index % 2 == 0 ? "#1b1b1b50" : "#31313150",
+													borderBottom: child.children?.length == 0 ? "" : "1px solid var(--border)",
+													borderTop: index == 0 ? "" : "1px solid var(--border)",
+												}}
+											>
+												{child.icon ? (
+													<img
+														src={child.icon}
+														className="w-6 h-6 -ml-1 -mr-1 overflow-hidden rounded-full"
+														alt="icon"
+													/>
+												) : child.name == UNCATEGORIZED ? (
+													<FolderCogIcon className="aspect-square w-5 h-5 -mr-1 pointer-events-none" />
+												) : child.isDirectory ? (
+													<Folder className="w-4 h-4" />
+												) : (
+													<FileIcon className="w-4 h-4" />
+												)}
+												<Label className={"w-full pointer-events-none " + ((index % 2) + 1)}>{child.name}</Label>
+											</div>
+											<div className="flex flex-col items-center w-full pl-4">
+												{child.children?.map((grandchild, index) => (
+													<div
+														key={index + grandchild.name}
+														className={"w-full min-h-10 border-l flex gap-2 items-center px-2 "}
+														style={{
+															backgroundColor: index % 2 == 0 ? "#1b1b1b50" : "#31313150",
+															borderBottom:
+																index == (child.children?.length || 0) - 1 ? "" : "1px dashed var(--border)",
+														}}
+													>
+														{grandchild.icon ? (
+															<img
+																src={grandchild.icon}
+																className="w-6 h-6 -ml-1 -mr-1 overflow-hidden rounded-full"
+																alt="icon"
+															/>
+														) : grandchild.name == UNCATEGORIZED ? (
+															<FolderCogIcon className="aspect-square w-5 h-5 -mr-1 pointer-events-none" />
+														) : grandchild.isDirectory ? (
+															<Folder className="w-4 h-4" />
+														) : (
+															<FileIcon className="w-4 h-4" />
+														)}
+														<Label className={"w-full pointer-events-none " + ((index % 2) + 1)}>
+															{grandchild.name.replace("DISABLED_", "").replace("DISABLED", "")}
+														</Label>
+													</div>
+												))}
+											</div>
+										</>
+									))}
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="flex justify-between w-full h-10 mt-2">
+					<Button
+						className="w-28 text-destructive hover:bg-destructive data-zzz:hover:text-background hover:text-background"
+						onClick={async() => {
+							// invoke("exit_app");
+							await createManagedDir();
+							setChanges((prev) => ({ ...prev, skip: true }));
+						}}
+					>
+						{textData.Skip}
+					</Button>
+					<div className="flex flex-col items-center justify-center w-full">
+						<div className=" flex items-center gap-2">
+							<Checkbox id="checkbox" className=" checked:bg-accent bgaccent" />
+							<label className="text-accent opacity-75 text-sm">{textData._Changes.CreateRestore}</label>
+						</div>
+					</div>
+					<Button
+						className="w-28 "
+						onClick={async () => {
+							let checked = document.getElementById("checkbox")?.getAttribute("aria-checked") == "true";
+							if (firstLoad) setHelpOpen(true);
+							if (checked) await createRestorePoint("ORG-");
+							else {
+								// updateInfo("Optimizing dir structure...");
+								// setConsentOverlayData((prev) => ({ ...prev, next: true }));
+							addToast({ type: "info", message: textData._Toasts.ApplyingChanges });
+							await applyChanges(true);
+							setChanges((prev) => ({ ...prev, skip: true }));
+							}
+						}}
+					>
+						{textData.Confirm}
+					</Button>
+				</div>
+			</div>
+		</motion.div>
+	) : (
+		<></>
+	);
+}
+export default Changes;

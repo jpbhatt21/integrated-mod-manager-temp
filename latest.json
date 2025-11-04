@@ -1,0 +1,11 @@
+{
+	"version": "2.1.0",
+	"notes": "{\"major\":[\"CRITICAL FIX - Selecting a language before other settings were loaded would break the app due to broken config file. It has been fixed now. Sorry for the inconvenience\",\"Added temporary category list to use if gamebanana is offline\"],\"minor\":[],\"patch\":[],\"notice\":{\"heading\":\"Test Heading\",\"subheading\":\"Test Subheading\",\"ignoreable\":2,\"timer\":10,\"ver\":\"2.1.1\",\"id\":1},\"cn\":{\"major\":[\"紧急修复 - 在其他设置加载之前选择语言会由于配置文件损坏而导致应用程序崩溃。现已修复。给您带来的不便，我们深表歉意\",\"添加临时分类列表，以便在GameBanana离线时使用\"],\"minor\":[],\"patch\":[],\"notice\":{\"heading\":\"Test CN Heading\",\"subheading\":\"Test CN Subheading\",\"ignoreable\":2,\"timer\":10,\"ver\":\"2.1.1\",\"id\":1}},\"ru\":{\"major\":[\"КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ - Выбор языка до загрузки других настроек приводил к поломке приложения из-за поврежденного файла конфигурации. Теперь это исправлено. Извините за неудобства\",\"Добавлен временный список категорий для использования, если GameBanana недоступен\"],\"minor\":[],\"patch\":[]},\"jp\":{\"major\":[\"重要修正 - 他の設定が読み込まれる前に言語を選択すると、設定ファイルの破損によりアプリが壊れる問題がありました。これは修正されました。ご不便をおかけして申し訳ありません\",\"GameBananaがオフラインの場合に使用する一時的なカテゴリリストを追加\"],\"minor\":[],\"patch\":[]},\"kr\":{\"major\":[\"중요 수정 - 다른 설정이 로드되기 전에 언어를 선택하면 설정 파일 손상으로 인해 앱이 중단되는 문제가 있었습니다. 이제 수정되었습니다. 불편을 끼쳐드려 죄송합니다\",\"GameBanana가 오프라인일 때 사용할 임시 카테고리 목록 추가\"],\"minor\":[],\"patch\":[]}}",
+	"pub_date": "2025-10-08T11:00:00Z",
+	"platforms": {
+		"windows-x86_64": {
+			"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRcHZDTEMvcmhGWENHWGV0Z1M2ZUxQVm5rbG1pLzNVTndxTjBJMVE5VWE2NHRmUE8zMXhDbTZIdlRjL3NzZlVMU3RpKzJoSG1RS1dRYnlXajBLS1RGOFRDQkVTQjllbkFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzYwOTY5NTkwCWZpbGU6SW50ZWdyYXRlZCBNb2QgTWFuYWdlciAoSU1NKV8yLjEuMF94NjQtc2V0dXAuZXhlCm1Ia3FkUFVRQTI3ZHNpSGUvVnpuaEM0eU5zcWwxbjhoUll5OWNNYlYzTnRMNzg3RGpkZG5ZVC8wR3REL2hWeVlqUU9MY1dSOEdTNU1YZ2tPelFmbkRnPT0K",
+			"url": "https://github.com/jpbhatt21/integrated-mod-manager-temp/releases/latest/download/Integrated.Mod.Manager.IMM._2.1.0_x64-setup.exe"
+		}
+	}
+}

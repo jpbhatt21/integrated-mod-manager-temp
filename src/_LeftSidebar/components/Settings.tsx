@@ -1,0 +1,716 @@
+import { addToast } from "@/_Toaster/ToastProvider";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { LANG_LIST } from "@/utils/consts";
+import { getConfig, saveConfigs, selectPath, setConfig } from "@/utils/filesys";
+import { encodeHotkeyForStorage, formatHotkeyDisplay, processHotkeyCode } from "@/utils/hotkeyUtils";
+import { setHotreload } from "@/utils/hotreload";
+import { setWindowType } from "@/utils/init";
+import { TEXT } from "@/utils/text";
+import { keySort } from "@/utils/utils";
+import { INIT_DONE, PRESETS, SETTINGS, SOURCE, store, TARGET, TEXT_DATA } from "@/utils/vars";
+import { Separator } from "@radix-ui/react-separator";
+import { save } from "@tauri-apps/plugin-dialog";
+import {  writeTextFile } from "@tauri-apps/plugin-fs";
+import { useAtom, useAtomValue } from "jotai";
+import {
+	AppWindowIcon,
+	CheckIcon,
+	CircleSlashIcon,
+	DownloadIcon,
+	EyeClosedIcon,
+	EyeIcon,
+	EyeOffIcon,
+	FocusIcon,
+	FolderIcon,
+	Globe2,
+	InfoIcon,
+	Maximize2Icon,
+	MaximizeIcon,
+	MouseIcon,
+	MousePointerClickIcon,
+	PauseIcon,
+	PlayIcon,
+	SettingsIcon,
+	SquareIcon,
+	UploadIcon,
+	XIcon,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useState } from "react";
+let bg: HTMLBodyElement | null = null;
+let keys = [] as any[];
+let keysdown = [] as any[];
+function Settings({ leftSidebarOpen }: { leftSidebarOpen: boolean }) {
+	const textData = useAtomValue(TEXT_DATA);
+	const [presets, setPresets] = useAtom(PRESETS);
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [_, setSource] = useAtom(SOURCE);
+	const [target, setTarget] = useAtom(TARGET);
+	const [settings, setSettings] = useAtom(SETTINGS);
+	const [alertOpen, setAlertOpen] = useState(false);
+	const [globalPage, setGlobalPage] = useState(true);
+	const [langAlertData, setLangAlertData] = useState({ prev: "en", new: "en" } as {
+		prev: keyof typeof TEXT;
+		new: keyof typeof TEXT;
+	});
+	const importConfig = async () => {
+		try {
+			var input = document.createElement("input");
+			input.type = "file";
+			input.accept = ".json";
+
+			input.onchange = (e: any) => {
+				if (!e.target) return;
+				var file = e.target.files[0];
+				var reader = new FileReader();
+				reader.readAsText(file, "UTF-8");
+				reader.onload = (readerEvent: any) => {
+					try {
+						setConfig(JSON.parse(readerEvent.target.result));
+						setSettingsOpen(false);
+					} catch {
+						addToast({ type: "error", message: textData._Toasts.InvalidConfig });
+					}
+				};
+			};
+
+			input.click();
+			return;
+		} catch (error) {}
+	};
+	const exportConfig = useCallback(async () => {
+		try {
+			const { gameConfig } = getConfig(settings);
+			const filePath = await save({
+				title: textData._LeftSideBar._components._Settings._ImportExport.ExportPop,
+				defaultPath: `config${settings.global.game}.json`,
+				filters: [
+					{
+						name: "JSON files",
+						extensions: ["json"],
+					},
+				],
+			});
+			if (filePath) {
+				await writeTextFile(filePath, JSON.stringify(gameConfig, null, 2));
+				addToast({ type: "success", message: textData._Toasts.ConfigExported });
+			}
+		} catch (error) {
+			addToast({ type: "error", message: textData._Toasts.ErrorExporting });
+		}
+	}, [settings]);
+	return (
+		<Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+			<DialogTrigger asChild>
+				<Button
+					onClick={() => {
+						// setProgress &&
+						// 	setProgress((prev: number[]) => {
+						// 		prev[1] = 1;
+						// 		return [...prev];
+						// 	});
+					}}
+					className="w-38.75 text-ellipsis h-12 overflow-hidden"
+					style={{ width: leftSidebarOpen ? "" : "3rem" }}
+				>
+					<SettingsIcon />
+					{leftSidebarOpen && textData.Settings}
+				</Button>
+			</DialogTrigger>
+			<DialogContent className="min-h-fit">
+				<AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+					<AlertDialogContent className="  game-font bg-background/50 backdrop-blur-xs border-border flex flex-col items-center gap-4 p-4 overflow-hidden border-2 rounded-lg">
+						<div className=" flex flex-col items-center gap-6 mt-6 text-center">
+							<div className="text-xl flex gap-2 flex-col items-center justify-center text-gray-200">
+								{TEXT[langAlertData.prev].Change + TEXT[langAlertData.prev].Languages[langAlertData.new]}
+								?
+								<Separator />
+								{TEXT[langAlertData.new].Change + TEXT[langAlertData.new].Languages[langAlertData.new]}?
+							</div>
+
+							{langAlertData.new !== "en" && (
+								<div className="max-w-96 text-accent gap-4 text-sm flex flex-col	">
+									<span>
+										{TEXT[langAlertData.prev].Warning1 + " "}
+										{TEXT[langAlertData.prev].Warning2}
+									</span>
+									<span>
+										{TEXT[langAlertData.new].Warning1 + " "}
+										{TEXT[langAlertData.new].Warning2}
+									</span>
+								</div>
+							)}
+						</div>
+						<div className="flex justify-between w-full gap-4 mt-4">
+							<AlertDialogCancel className="min-w-24 duration-300">
+								{TEXT[langAlertData.prev].Cancel} | {TEXT[langAlertData.new].Cancel}
+							</AlertDialogCancel>
+							<AlertDialogAction
+								className="min-w-24 text-accent "
+								onClick={() => {
+									setSettings((prev) => {
+										prev.global.lang = langAlertData.new;
+										return { ...prev };
+									});
+									saveConfigs();
+									setAlertOpen(false);
+								}}
+							>
+								{TEXT[langAlertData.prev].Confirm} | {TEXT[langAlertData.new].Confirm}
+							</AlertDialogAction>
+						</div>
+					</AlertDialogContent>
+				</AlertDialog>
+				<div className="min-h-fit text-accent my-6 text-3xl">
+					{textData.Settings}
+					<Tooltip>
+						<TooltipTrigger></TooltipTrigger>
+						<TooltipContent className="opacity-0"></TooltipContent>
+					</Tooltip>
+				</div>
+				<Tabs
+					defaultValue={globalPage ? "global" : "game"}
+					onValueChange={(val) => setGlobalPage(val === "global")}
+					className="w-full"
+				>
+					<TabsList className="bg-background/50 w-full gap-2">
+						<TabsTrigger value="global" className="w-1/2 h-10">
+							<Globe2 />
+							{textData._LeftSideBar._components._Settings.Global}
+						</TabsTrigger>
+						<TabsTrigger value="game" className="w-1/2 h-10">
+							<div
+								className="height-2 aspect-square duration-300 logo min-h-4"
+								style={{
+									filter: !globalPage ? "invert(1) hue-rotate(180deg)" : "",
+								}}
+							></div>
+							{{ WW: "WuWa", ZZ: "Z·Z·Z","":"" }[settings.global.game]}
+						</TabsTrigger>
+					</TabsList>
+					<AnimatePresence mode="wait" initial={false}>
+						<motion.div
+							key={globalPage ? "global" : "game"}
+							initial={{ opacity: 0, x: globalPage ? "-25%" : "25%" }}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{ opacity: 0, x: globalPage ? "-25%" : "25%" }}
+							transition={{ duration: 0.2 }}
+							className="w-full gap-2 flex min-h-80"
+						>
+							{globalPage ? (
+								<>
+									<div className="min-w-1/2 justify-evenly flex flex-col min-h-full gap-4 pr-2">
+										<div className="flex flex-col w-full gap-4">
+											<label className="min-w-fit">{textData._LeftSideBar._components._Settings.Toggle}</label>
+											<Tabs
+												defaultValue={settings.global.toggleClick.toString()}
+												className="w-full"
+												onValueChange={(e) => {
+													setSettings((prev) => {
+														prev.global.toggleClick = parseInt(e) as 0 | 2;
+														return { ...prev };
+													});
+													saveConfigs();
+												}}
+											>
+												<TabsList className="bg-background/50 w-full">
+													<TabsTrigger value="0" className="w-1/2 h-10">
+														<MousePointerClickIcon className=" rotate-y-180 w-4 -mr-2" />
+														<MouseIcon />
+														{textData._LeftSideBar._components._Settings._Toggle.LeftClick}
+													</TabsTrigger>
+													<TabsTrigger value="2" className="w-1/2 h-10">
+														<MouseIcon />
+														<MousePointerClickIcon className=" w-4 -ml-2" />
+														{textData._LeftSideBar._components._Settings._Toggle.RightClick}
+													</TabsTrigger>
+												</TabsList>
+											</Tabs>
+										</div>
+										<div className="flex flex-col w-full gap-4">
+											<label>{textData._LeftSideBar._components._Settings.WindowType}</label>
+											<Tabs
+												defaultValue={settings.global.winType.toString()}
+												onValueChange={(e) => {
+													setSettings((prev) => {
+														prev.global.winType = parseInt(e) as 0 | 1 | 2;
+														return { ...prev };
+													});
+													setWindowType(parseInt(e));
+													saveConfigs();
+												}}
+												className="w-full"
+											>
+												<TabsList className="bg-background/50 w-full">
+													<TabsTrigger value="0" className="w-1/3 h-10">
+														<AppWindowIcon className="aspect-square h-full pointer-events-none" />{" "}
+														{textData._LeftSideBar._components._Settings._WindowType.Windowed}
+													</TabsTrigger>
+													<TabsTrigger value="1" className="w-1/3 h-10">
+														<MaximizeIcon className="aspect-square h-full pointer-events-none" />{" "}
+														{textData._LeftSideBar._components._Settings._WindowType.Borderless}
+													</TabsTrigger>
+													<TabsTrigger value="2" className="w-1/3 h-10">
+														<Maximize2Icon className="aspect-square h-full pointer-events-none" />{" "}
+														{textData._LeftSideBar._components._Settings._WindowType.Fullscreen}
+													</TabsTrigger>
+												</TabsList>
+											</Tabs>
+										</div>
+										<div className="flex flex-col w-full gap-4">
+											<label className="min-w-fit">{textData._LeftSideBar._components._Settings.WindowBGOpacity}</label>
+
+											<Slider
+												defaultValue={[settings.global.bgOpacity * 100]}
+												max={100}
+												min={0}
+												step={1}
+												className="w-full m-1"
+												onValueChange={(e) => {
+													bg = bg || document.querySelector("body");
+													if (bg)
+														bg.style.backgroundColor = "color-mix(in oklab, var(--background) " + e + "%, transparent)";
+												}}
+												onValueCommit={(e) => {
+													setSettings((prev) => {
+														prev.global.bgOpacity = e[0] / 100;
+														return { ...prev };
+													});
+													saveConfigs();
+												}}
+											/>
+										</div>
+									</div>
+									<div className="min-w-1/2 justify-evenly flex flex-col min-h-full gap-4 pr-2">
+										<div className="flex flex-col w-full gap-4">
+											<div className="flex items-center gap-1">
+												{textData._LeftSideBar._components._Settings.NSFW}
+												<Tooltip>
+													<TooltipTrigger>
+														<InfoIcon className="text-muted-foreground hover:text-gray-300 w-4 h-4" />
+													</TooltipTrigger>
+													<TooltipContent>
+														<div className="flex flex-col gap-1">
+															<div>
+																<b>{textData._LeftSideBar._components._Settings._NSFW.Remove} -</b>{" "}
+																{textData._LeftSideBar._components._Settings._NSFW.RemoveMsg}
+															</div>
+															<div>
+																<b>{textData._LeftSideBar._components._Settings._NSFW.Blur} -</b>{" "}
+																{textData._LeftSideBar._components._Settings._NSFW.BlurMsg}
+															</div>
+															<div>
+																<b>{textData._LeftSideBar._components._Settings._NSFW.Show} -</b>{" "}
+																{textData._LeftSideBar._components._Settings._NSFW.ShowMsg}
+															</div>
+														</div>
+													</TooltipContent>
+												</Tooltip>
+											</div>
+											<Tabs
+												defaultValue={settings.global.nsfw.toString()}
+												onValueChange={(e) => {
+													setSettings((prev) => {
+														prev.global.nsfw = parseInt(e) as 0 | 1 | 2;
+														return { ...prev };
+													});
+													saveConfigs();
+												}}
+												className="w-full"
+											>
+												<TabsList className="bg-background/50 w-full">
+													<TabsTrigger value="0" className="w-1/3 h-10">
+														<EyeOffIcon className="aspect-square h-full pointer-events-none" />{" "}
+														{textData._LeftSideBar._components._Settings._NSFW.Remove}
+													</TabsTrigger>
+													<TabsTrigger value="1" className="w-1/3 h-10">
+														<EyeClosedIcon className="aspect-square h-full pointer-events-none" />{" "}
+														{textData._LeftSideBar._components._Settings._NSFW.Blur}
+													</TabsTrigger>
+													<TabsTrigger value="2" className="w-1/3 h-10">
+														<EyeIcon className="aspect-square h-full pointer-events-none" />{" "}
+														{textData._LeftSideBar._components._Settings._NSFW.Show}
+													</TabsTrigger>
+												</TabsList>
+											</Tabs>
+										</div>
+										<div className="flex flex-col w-full gap-4">
+											<label>{textData._LeftSideBar._components._Settings.BgType}</label>
+											<Tabs
+												defaultValue={settings.global.bgType.toString()}
+												onValueChange={(e) => {
+													setSettings((prev) => {
+														prev.global.bgType = parseInt(e) as 0 | 1 | 2;
+														return { ...prev };
+													});
+													saveConfigs();
+												}}
+												className="w-full"
+											>
+												<TabsList className="bg-background/50 w-full">
+													<TabsTrigger value="0" className="w-1/3 h-10">
+														<SquareIcon className="aspect-square h-full pointer-events-none" />{" "}
+														{textData._LeftSideBar._components._Settings._BgType.Blank}
+													</TabsTrigger>
+													<TabsTrigger value="1" className="w-1/3 h-10">
+														<PauseIcon className="aspect-square h-full pointer-events-none" />{" "}
+														{textData._LeftSideBar._components._Settings._BgType.Static}
+													</TabsTrigger>
+													<TabsTrigger value="2" className="w-1/3 h-10">
+														<PlayIcon className="aspect-square h-full pointer-events-none" />
+														{textData._LeftSideBar._components._Settings._BgType.Dynamic}
+													</TabsTrigger>
+												</TabsList>
+											</Tabs>
+										</div>
+										<div className="flex flex-col w-full gap-4">
+											<label>{textData.Language}</label>
+											<div className="flex justify-evenly ">
+												{LANG_LIST.map((lang) => (
+													<div
+														key={lang.Code}
+														className={`hover:brightness-150 -mt-2 flex-col flex items-center justify-center gap-1 text-sm duration-300 cursor-pointerx select-none`}
+														onClick={() => {
+															if (settings.global.lang == lang.Code) return;
+															setLangAlertData({
+																prev: (settings.global.lang as keyof typeof TEXT) || "en",
+																new: lang.Code as keyof typeof TEXT,
+															});
+															setAlertOpen(true);
+														}}
+													>
+														<img src={lang.Flag} alt={lang.Name} className="w-6 h-6 duration-200 hover:scale-120" />
+														<span
+															className="overflow-hidden duration-200 mt-12 text-accent absolute whitespace-nowrap "
+															style={{
+																opacity: settings.global.lang == lang.Code ? "1" : "0",
+															}}
+														>
+															{lang.Name}
+														</span>
+													</div>
+												))}
+											</div>
+										</div>
+									</div>
+								</>
+							) : (
+								<>
+									<div className="min-w-1/2 justify-between flex flex-col min-h-full gap-4 pr-2">
+										<div className="flex flex-col w-full gap-4">
+											<div className="flex items-center gap-1">
+												{textData._LeftSideBar._components._Settings.AutoReload}
+												<Tooltip>
+													<TooltipTrigger>
+														<InfoIcon className="text-muted-foreground hover:text-gray-300 w-4 h-4" />
+													</TooltipTrigger>
+													<TooltipContent>
+														<div className="flex flex-col gap-1">
+															<div>
+																<b>{textData._LeftSideBar._components._Settings._AutoReload.Disable} -</b>{" "}
+																{textData._LeftSideBar._components._Settings._AutoReload.DisableMsg}
+															</div>
+															<div>
+																<b>IMM -</b> {textData._LeftSideBar._components._Settings._AutoReload.WWMMMsg}
+															</div>
+															<div>
+																<b>{textData._LeftSideBar._components._Settings._AutoReload.OnFocus} -</b>{" "}
+																{textData._LeftSideBar._components._Settings._AutoReload.FocusMsg}
+															</div>
+															<Separator />
+															<div>{textData._LeftSideBar._components._Settings._AutoReload.ReloadMsg}</div>
+														</div>
+													</TooltipContent>
+												</Tooltip>
+											</div>
+											<Tabs
+												defaultValue={settings.game.hotReload.toString()}
+												className="w-full"
+												onValueChange={(e: any) => {
+													e = parseInt(e) as 0 | 1 | 2;
+													setSettings((prev) => {
+														prev.game.hotReload = e;
+														return { ...prev };
+													});
+													setHotreload(e, settings.global.game, target);
+													saveConfigs();
+												}}
+											>
+												<TabsList className="bg-background/50 w-full">
+													<TabsTrigger value="0" className="w-1/3 h-10">
+														<CircleSlashIcon />
+														{textData._LeftSideBar._components._Settings._AutoReload.Disable}
+													</TabsTrigger>
+													<TabsTrigger value="1" className="w-1/3 h-10">
+														<AppWindowIcon />
+														IMM
+													</TabsTrigger>
+													<TabsTrigger value="2" className="w-1/3 h-10">
+														<FocusIcon />
+														{textData._LeftSideBar._components._Settings._AutoReload.OnFocus}
+													</TabsTrigger>
+												</TabsList>
+											</Tabs>
+										</div>
+										<div className="flex flex-col w-full gap-4">
+											<div className="flex items-center gap-1">
+												{textData._LeftSideBar._components._Settings.LaunchGame}
+												<Tooltip>
+													<TooltipTrigger>
+														<InfoIcon className="text-muted-foreground hover:text-gray-300 w-4 h-4" />
+													</TooltipTrigger>
+													<TooltipContent>
+														<div className="flex flex-col items-center gap-1">
+															<div>{textData._LeftSideBar._components._Settings._LaunchGame.LaunchMsg1}</div>
+															<div>{textData._LeftSideBar._components._Settings._LaunchGame.LaunchMsg2}</div>
+														</div>
+													</TooltipContent>
+												</Tooltip>
+											</div>
+											<Tabs
+												defaultValue={settings.game.launch.toString()}
+												className="w-full"
+												onValueChange={(e) => {
+													setSettings((prev) => {
+														prev.game.launch = parseInt(e) as 0 | 1;
+														return { ...prev };
+													});
+													saveConfigs();
+												}}
+											>
+												<TabsList className="bg-background/50 w-full">
+													<TabsTrigger value="0" className="w-1/2 h-10">
+														<XIcon className=" rotate-y-180 w-4" />
+														{textData._LeftSideBar._components._Settings._AutoReload.Disable}
+													</TabsTrigger>
+													<TabsTrigger value="1" className="w-1/2 h-10">
+														<CheckIcon className=" w-4" />{" "}
+														{textData._LeftSideBar._components._Settings._AutoReload.Enable}
+													</TabsTrigger>
+												</TabsList>
+											</Tabs>
+											<div className="flex flex-row items-center w-full gap-2">
+												<Button
+													disabled={settings.game.launch == 0}
+													className="aspect-square flex items-center justify-center w-8 h-8"
+													onClick={async () => {
+														const path = await selectPath({multiple:false,directory:false,defaultPath:settings.global.exeXXMI,title:"Select XXMI Executable",filters:[{name:"Application",extensions:["exe"]}]});
+														if (path) {
+															setSettings((prev) => {
+																prev.global.exeXXMI = path;
+																return { ...prev };
+															});
+															saveConfigs();
+														}
+													}}
+													style={{
+														marginLeft: leftSidebarOpen ? "" : "0.25rem",
+													}}
+												>
+													<FolderIcon className="aspect-square w-5" />
+												</Button>
+												<Input
+													readOnly
+													disabled={settings.game.launch == 0}
+													type="text"
+													className="w-72 overflow-hidden border-border/0 bg-input/50 cursor-default duration-200 text-ellipsis h-8"
+													value={settings.global.exeXXMI ?? "-"}
+													style={{
+														width: leftSidebarOpen ? "" : "0px",
+														opacity: leftSidebarOpen ? "" : "0",
+													}}
+												/>
+											</div>
+										</div>
+										<div className="flex flex-col w-full gap-4">
+											<div className="flex items-center gap-1">
+												{settings.global.game + "MI and Mods Folder"}
+												{/* <Tooltip>
+													<TooltipTrigger>
+														<InfoIcon className="text-muted-foreground hover:text-gray-300 w-4 h-4" />
+													</TooltipTrigger>
+													<TooltipContent>
+														<div className="flex flex-col gap-1">
+															<div>
+																Select location of <b>{textData._LeftSideBar._components._Settings._AutoReload.Disable} -</b>{" "}
+																
+															</div>
+															<div>
+																<b>IMM -</b> {textData._LeftSideBar._components._Settings._AutoReload.WWMMMsg}
+															</div>
+															<div>
+																<b>{textData._LeftSideBar._components._Settings._AutoReload.OnFocus} -</b>{" "}
+																{textData._LeftSideBar._components._Settings._AutoReload.FocusMsg}
+															</div>
+															<Separator />
+															<div>{textData._LeftSideBar._components._Settings._AutoReload.ReloadMsg}</div>
+														</div>
+													</TooltipContent>
+												</Tooltip> */}
+											</div>
+											<div className="flex flex-row items-center w-full gap-2">
+												<Button
+													className="w-1/2"
+													onClick={() => {
+														setSource("");
+														setTarget("");
+														setSettingsOpen(false);
+														store.set(INIT_DONE, false);
+													}}
+												>
+													{textData._LeftSideBar._components._Settings.Change}
+												</Button>
+												<Button className="w-1/2" disabled></Button>
+											</div>
+										</div>
+									</div>
+									<div className="min-w-1/2 justify-e venly flex flex-col min-h-full gap-2 pr-2">
+										<div className="flex flex-col w-full gap-4">
+											{textData._LeftSideBar._components._Settings.ImportExport}
+											<div className="flex justify-start w-full gap-2 pr-2">
+												<Button
+													// disabled={disabled}
+													onClick={importConfig}
+													className="h-9 w-1/2 text-sm "
+												>
+													<DownloadIcon className="w-4 h-4" />
+													{textData._LeftSideBar._components._Settings._ImportExport.Import}
+												</Button>
+												<Button onClick={exportConfig} className="h-9 w-1/2 text-sm">
+													<UploadIcon className="w-4 h-4" />
+													{textData._LeftSideBar._components._Settings._ImportExport.Export}
+												</Button>
+											</div>
+											{/* <Button
+																			className="w-32"
+																			onClick={async () => {
+																				let path = ((await folderSelector(tgt)) as string) || tgt || "";
+																				setTgt(path);
+																				if (checked) {
+																					setSrc(path+"\\Mods");
+																				}
+																			}}
+																		>
+																			{textData.Browse}
+																		</Button> */}
+										</div>
+										<div className="flex items-center gap-1">
+											{textData._LeftSideBar._components._Settings.HotKey}
+											<Tooltip>
+												<TooltipTrigger>
+													<InfoIcon className="text-muted-foreground hover:text-gray-300 w-4 h-4" />
+												</TooltipTrigger>
+												<TooltipContent>
+													<div className="flex flex-col gap-1">
+														<div>{textData._LeftSideBar._components._Settings._HotKey.HKMsg1}</div>
+														<div>
+															{textData._LeftSideBar._components._Settings._HotKey.HKMsg2} <b>'IMM'</b>{" "}
+															{textData._LeftSideBar._components._Settings._HotKey.HKMsg3}{" "}
+															<b>'{textData._LeftSideBar._components._Settings._AutoReload.OnFocus}'</b>
+														</div>
+														<Separator />
+														<div>{textData._LeftSideBar._components._Settings._HotKey.HKMsg4}</div>
+														<div>
+															{textData._LeftSideBar._components._Settings._HotKey.HKMsg5} <b>Ctrl+C</b>, <b>Alt+Tab</b>
+															, {textData._LeftSideBar._components._Settings._HotKey.HKMsg6}
+														</div>
+														<Separator />
+														<div>
+															<b>Backspace -</b> {textData._LeftSideBar._components._Settings._HotKey.ClearHK}{" "}
+														</div>
+													</div>
+												</TooltipContent>
+											</Tooltip>
+										</div>
+										<div className="max-h-51 flex flex-col w-full h-full gap-1 p-2 ml-2 overflow-x-hidden overflow-y-auto ">
+											{presets.length > 0 ? (
+												presets.map((preset, index) => (
+													<div className="flex items-center justify-between w-full h-10 gap-2">
+														<Input
+															className="w-25 text-ellipsis h-10 p-0 overflow-hidden break-words border-0"
+															style={{ backgroundColor: "#0000" }}
+															onFocus={(e) => {
+																e.currentTarget.blur();
+															}}
+															value={preset?.name}
+														></Input>
+														<Input
+															defaultValue={formatHotkeyDisplay(preset?.hotkey || "")}
+															autoFocus={false}
+															contentEditable={false}
+															onKeyDownCapture={(e) => {
+																e.preventDefault();
+																if (e.code == "Backspace") {
+																	e.currentTarget.value = "";
+																	saveConfigs();
+																} else if (e.code == "Escape") {
+																	e.currentTarget.value = formatHotkeyDisplay(preset?.hotkey || "");
+																	keysdown = [];
+																	keys = [];
+																} else {
+																	let next: any = [];
+																	let key = processHotkeyCode(e.code)
+																		.split("")
+																		.map((x, i) => (i == 0 ? x.toUpperCase() : x))
+																		.join("");
+																	if (keys.includes(key)) {
+																		next = keys;
+																	} else {
+																		if (!keysdown.includes(e.code)) {
+																			keysdown.push(e.code);
+																		}
+																		keys.push(key);
+																		next = keySort(keys);
+																	}
+																	e.currentTarget.value = next.join(" ﹢ ");
+																}
+															}}
+															onKeyUpCapture={(e) => {
+																if (e.code == "Backspace" || e.code == "Escape") return;
+																let key = e.code;
+																let index = keysdown.indexOf(key);
+																if (index > -1) keysdown.splice(index, 1);
+																if (keysdown.length == 0) {
+																	keys = [];
+																	e.currentTarget.blur();
+																}
+															}}
+															onBlur={(e) => {
+																keysdown = [];
+																keys = [];
+																setPresets((prev) => {
+																	prev[index].hotkey = encodeHotkeyForStorage(e.currentTarget.value);
+																	return [...prev];
+																});
+																saveConfigs();
+																// registerGlobalHotkeys();
+															}}
+															className=" caret-transparent w-full text-center select-none"
+															type="text"
+														/>
+													</div>
+												))
+											) : (
+												<div className="text-white/50 flex items-center justify-center w-full h-full">
+													{textData._LeftSideBar._components._Settings._HotKey.HKEmpty}
+												</div>
+											)}
+										</div>
+									</div>
+								</>
+							)}
+						</motion.div>
+					</AnimatePresence>
+				</Tabs>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+export default Settings;
